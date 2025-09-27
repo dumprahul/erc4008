@@ -5,8 +5,7 @@ import Agent from "./src/0gAgentSdk.js";
 const app = express();
 app.use(bodyParser.json());
 
-//   groqApiKey: "",
-// });
+
 
 
 // ✅ API endpoint
