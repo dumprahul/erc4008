@@ -1,12 +1,15 @@
 // 0gAgentSdk.js - Complete 0G Agent Kit SDK with AI-powered natural language interface
 
-import * as IdentityRegistry from './IdentityRegistry.js';
 import * as ReputationRegistry from './ReputationRegistry.js';
 import * as ValidationRegistry from './ValidationRegistry.js';
 
 // 🔥 AI IMPORTS - New AI functionality
 import { GroqService } from './ai/groq-service.js';
 import { WalletHelpers } from './ai/wallet-helpers.js';
+
+// 🔗 Polygon x402 A2A Payment/Comm imports
+import { sendMessage } from '../A2APayment402/a2a.js';
+import { createDemoPaymentPayload, encodePaymentPayload } from '../A2APayment402/payment.js';
 
 /**
  * Agent class - Complete interface for 0G Agent creation, reputation, validation + AI
@@ -21,10 +24,50 @@ class Agent {
     this.groqService = new GroqService();
     this.aiEnabled = false;
 
+    // Communication fields
+    this.communicationEndpoint = config.communicationEndpoint || null;
+    this.agentPeers = config.agentPeers || [];
+
     // Auto-register if domain and address provided
     if (this.domain && this.address) {
       this.register().catch(console.error);
     }
+  }
+  /**
+   * Set communication endpoint for this agent
+   * @param {string} endpoint - URL or address
+   */
+  setCommunicationEndpoint(endpoint) {
+    this.communicationEndpoint = endpoint;
+  }
+
+  /**
+   * Add a peer agent (by endpoint/address)
+   * @param {string} peerEndpoint
+   */
+  addPeer(peerEndpoint) {
+    if (!this.agentPeers.includes(peerEndpoint)) {
+      this.agentPeers.push(peerEndpoint);
+    }
+  }
+
+  /**
+   * Send a message to another agent using Polygon x402 system
+   * @param {string} peerEndpoint - The peer's endpoint
+   * @param {string} skill - The skill or method to invoke
+   * @param {any} input - Input data
+   * @returns {Promise<any>} Response from peer
+   */
+  async sendAgentMessage(peerEndpoint, skill, input) {
+    return await sendMessage(peerEndpoint, skill, input);
+  }
+
+  /**
+   * Example: Send payment to another agent using Polygon x402
+   */
+  async sendAgentPayment(to, value, verifyingContract) {
+    const from = this.address || Agent.getWalletAddress();
+    return await createDemoPaymentPayload(from, to, value, verifyingContract);
   }
 
   // ===== 🔥 NEW AI METHODS =====
@@ -82,6 +125,37 @@ class Agent {
       return {
         success: true,
         command,
+        /**
+         * 0gAgentSdk.js - Complete 0G Agent Kit SDK with AI-powered natural language interface
+         *
+         * Multi-Agent Communication & Polygon x402 Payment Integration
+         *
+         * After installing with `npm install 0g-agent-kit`, you can enable wallet and agent features as usual.
+         *
+         * To enable multi-agent communication and Polygon x402 payments:
+         *
+         * 1. Set up your agent:
+         *    const agent = new Agent({ domain: 'yourdomain.com', address: '0xYourAddress' });
+         *
+         * 2. Enable AI (optional):
+         *    agent.enableAI({ groqApiKey: 'YOUR_GROQ_API_KEY' });
+         *
+         * 3. Set your communication endpoint:
+         *    agent.setCommunicationEndpoint('http://your-server-address:PORT');
+         *
+         * 4. Add peer agents (known endpoints):
+         *    agent.addPeer('http://peer-server-address:PORT');
+         *
+         * 5. Send a message to a peer agent:
+         *    await agent.sendAgentMessage('http://peer-server-address:PORT', 'skillName', { input: 'data' });
+         *
+         * 6. Send a Polygon x402 payment to a peer:
+         *    await agent.sendAgentPayment('0xPeerAddress', '10000', '0xVerifierContract');
+         *
+         * Communication and payments will use Polygon x402 only, and agents must communicate and pay using these built-in tools.
+         *
+         * This does not affect other agent features or behaviors.
+         */
         analysis: {
           function: analysis.function,
           parameters: analysis.parameters,
