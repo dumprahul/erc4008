@@ -1,0 +1,20 @@
+{
+  "name": "0g-agent-kit",
+  "version": "1.0.0",
+  "description": "0g agent kit powered Power House",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Power House",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dumprahul/erc4008.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dumprahul/erc4008/issues"
+  },
+  "homepage": "https://github.com/dumprahul/erc4008#readme"
+}
