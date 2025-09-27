@@ -13,11 +13,11 @@ app.use(express.json());
 // Initialize agent with AI
 const agent = new Agent();
 agent.enableAI({
-  groqApiKey:'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'
+  groqApiKey:''
 });
 
 // Import wallet
-Agent.importWallet('203dd76c96385bd9fbedde26a6dd9bb27ce57f2c9407777d7905535e16abb542');
+Agent.importWallet('');
 
 // 🤖 CHAT ENDPOINT - Use your AI SDK
 app.post('/chat', async (req, res) => {
