@@ -1,6 +1,6 @@
 {
   "name": "0g-agent-kit",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "0g agent kit powered by Power House",
   "main": "src/index.js",
   "scripts": {
@@ -24,5 +24,6 @@
     "ethers": "^6.15.0",
     "express": "^5.1.0",
     "groq-sdk": "^0.32.0"
-  }
+  },
+  "devDependencies": {}
 }
