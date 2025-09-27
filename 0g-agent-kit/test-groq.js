@@ -12,9 +12,6 @@ app.use(express.json());
 
 // Initialize agent with AI
 const agent = new Agent();
-agent.enableAI({
-  groqApiKey:''
-});
 
 // Import wallet
 Agent.importWallet('');
