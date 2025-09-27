@@ -6,7 +6,7 @@ const app = express();
 app.use(bodyParser.json());
 
 agent.enableAI({
-  groqApiKey: "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",
+  groqApiKey: "",
 });
 
 // ✅ API endpoint
