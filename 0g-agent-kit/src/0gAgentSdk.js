@@ -1,29 +1,25 @@
-// 0g-agent-kit.js - Main 0G Agent Kit SDK
+// 0gAgentSdk.js - Complete 0G Agent Kit SDK with all registries
 
 import * as IdentityRegistry from './IdentityRegistry.js';
+import * as ReputationRegistry from './ReputationRegistry.js';
+import * as ValidationRegistry from './ValidationRegistry.js';
 
 /**
- * Agent class - Simple interface for 0G Agent creation
+ * Agent class - Complete interface for 0G Agent creation, reputation, and validation
  */
 class Agent {
   constructor(config = {}) {
     this.domain = config.domain;
     this.address = config.address;
     this.agentId = null;
+
+    // Auto-register if domain and address provided
+    if (this.domain && this.address) {
+      this.register().catch(console.error);
+    }
   }
 
-  /**
-   * Create and register agent in one step
-   * @param {Object} config - Agent configuration
-   * @returns {Promise<Agent>} Registered agent instance
-   */
-  static async create(config) {
-    const agent = new Agent(config);
-    if (agent.domain && agent.address) {
-      await agent.register();
-    }
-    return agent;
-  }
+  // ===== IDENTITY METHODS =====
 
   /**
    * Register this agent
@@ -56,15 +52,7 @@ class Agent {
     }
 
     try {
-      const result = await IdentityRegistry.updateAgent(this.agentId, newDomain, newAddress);
-      
-      // Update local properties if successful
-      if (result.success) {
-        if (newDomain) this.domain = newDomain;
-        if (newAddress) this.address = newAddress;
-      }
-      
-      return result;
+      return await IdentityRegistry.updateAgent(this.agentId, newDomain, newAddress);
     } catch (error) {
       console.error('❌ Agent update failed:', error.message);
       throw error;
@@ -88,26 +76,103 @@ class Agent {
     }
   }
 
+  // ===== REPUTATION METHODS =====
+
   /**
-   * Check if this agent exists
-   * @returns {Promise<boolean>} Whether agent exists
+   * Authorize feedback for another agent (this agent becomes the client)
+   * @param {number|string} serverAgentId - Server agent ID to authorize feedback for
+   * @returns {Promise<Object>} Authorization result
    */
-  async exists() {
+  async authorizeFeedbackFor(serverAgentId) {
     if (!this.agentId) {
-      return false;
+      throw new Error('Agent must be registered before authorizing feedback');
     }
 
-    try {
-      return await IdentityRegistry.agentExists(this.agentId);
-    } catch (error) {
-      console.error('❌ Failed to check agent existence:', error.message);
-      return false;
-    }
+    return await ReputationRegistry.authorizeFeedback(this.agentId, serverAgentId);
   }
 
-  // Static methods for wallet management
+  /**
+   * Get all feedback authorizations where this agent is the client
+   * @returns {Promise<string[]>} Array of feedback authorization IDs
+   */
+  async getMyClientAuthorizations() {
+    if (!this.agentId) {
+      throw new Error('Agent must be registered');
+    }
+
+    return await ReputationRegistry.getClientFeedbackAuthorizations(this.agentId);
+  }
+
+  /**
+   * Get all feedback authorizations where this agent is the server
+   * @returns {Promise<string[]>} Array of feedback authorization IDs
+   */
+  async getMyServerAuthorizations() {
+    if (!this.agentId) {
+      throw new Error('Agent must be registered');
+    }
+
+    return await ReputationRegistry.getServerFeedbackAuthorizations(this.agentId);
+  }
+
+  // ===== VALIDATION METHODS =====
+
+  /**
+   * Request validation from a validator agent (this agent is the requester)
+   * @param {number|string} validatorAgentId - Validator agent ID
+   * @param {string} dataHash - Hash of data to validate
+   * @returns {Promise<Object>} Validation request result
+   */
+  async requestValidationFrom(validatorAgentId, dataHash) {
+    if (!this.agentId) {
+      throw new Error('Agent must be registered before requesting validation');
+    }
+
+    return await ValidationRegistry.requestValidation(validatorAgentId, this.agentId, dataHash);
+  }
+
+  /**
+   * Respond to validation request (this agent acts as validator)
+   * @param {string} dataHash - Hash of validated data
+   * @param {number} response - Validation score (0-100)
+   * @returns {Promise<Object>} Response result
+   */
+  async respondToValidation(dataHash, response) {
+    return await ValidationRegistry.respondToValidation(dataHash, response);
+  }
+
+  /**
+   * Get pending validation requests for this agent (when acting as validator)
+   * @returns {Promise<string[]>} Array of pending request IDs
+   */
+  async getMyPendingValidations() {
+    if (!this.agentId) {
+      throw new Error('Agent must be registered');
+    }
+
+    return await ValidationRegistry.getPendingValidations(this.agentId);
+  }
+
+  /**
+   * Get validation requests where this agent is the server
+   * @returns {Promise<string[]>} Array of request IDs
+   */
+  async getMyValidationRequests() {
+    if (!this.agentId) {
+      throw new Error('Agent must be registered');
+    }
+
+    return await ValidationRegistry.getServerValidations(this.agentId);
+  }
+
+  // ===== STATIC WALLET MANAGEMENT =====
+
   static importWallet(privateKey) {
-    return IdentityRegistry.importWallet(privateKey);
+    // Import wallet for all registries
+    IdentityRegistry.importWallet(privateKey);
+    ReputationRegistry.importWallet(privateKey);
+    ValidationRegistry.importWallet(privateKey);
+    return IdentityRegistry.getWalletAddress();
   }
 
   static getWalletAddress() {
@@ -118,7 +183,8 @@ class Agent {
     return await IdentityRegistry.getWalletBalance();
   }
 
-  // Static methods for contract queries
+  // ===== STATIC IDENTITY METHODS =====
+
   static async getTotalAgents() {
     return await IdentityRegistry.getTotalAgents();
   }
@@ -143,7 +209,6 @@ class Agent {
     return await IdentityRegistry.getAgent(agentId);
   }
 
-  // Direct registry access
   static async registerAgent(domain, address) {
     return await IdentityRegistry.registerAgent(domain, address);
   }
@@ -151,25 +216,122 @@ class Agent {
   static async updateAgent(agentId, newDomain, newAddress) {
     return await IdentityRegistry.updateAgent(agentId, newDomain, newAddress);
   }
+
+  // ===== STATIC REPUTATION METHODS =====
+
+  /**
+   * Authorize feedback between any two agents
+   * @param {number|string} clientAgentId - Client agent ID
+   * @param {number|string} serverAgentId - Server agent ID
+   * @returns {Promise<Object>} Authorization result
+   */
+  static async authorizeFeedback(clientAgentId, serverAgentId) {
+    return await ReputationRegistry.authorizeFeedback(clientAgentId, serverAgentId);
+  }
+
+  /**
+   * Check if feedback is authorized
+   * @param {string} feedbackAuthId - Feedback authorization ID
+   * @returns {Promise<boolean>} True if authorized
+   */
+  static async isFeedbackAuthorized(feedbackAuthId) {
+    return await ReputationRegistry.isFeedbackAuthorized(feedbackAuthId);
+  }
+
+  /**
+   * Get feedback authorization details
+   * @param {string} feedbackAuthId - Feedback authorization ID
+   * @returns {Promise<Object>} Authorization details
+   */
+  static async getFeedbackAuthorization(feedbackAuthId) {
+    return await ReputationRegistry.getFeedbackAuthorization(feedbackAuthId);
+  }
+
+  /**
+   * Get client feedback authorizations
+   * @param {number|string} agentClientId - Client agent ID
+   * @returns {Promise<string[]>} Array of authorization IDs
+   */
+  static async getClientFeedbackAuthorizations(agentClientId) {
+    return await ReputationRegistry.getClientFeedbackAuthorizations(agentClientId);
+  }
+
+  /**
+   * Get server feedback authorizations
+   * @param {number|string} agentServerId - Server agent ID
+   * @returns {Promise<string[]>} Array of authorization IDs
+   */
+  static async getServerFeedbackAuthorizations(agentServerId) {
+    return await ReputationRegistry.getServerFeedbackAuthorizations(agentServerId);
+  }
+
+  // ===== STATIC VALIDATION METHODS =====
+
+  /**
+   * Request validation between any two agents
+   * @param {number|string} validatorAgentId - Validator agent ID
+   * @param {number|string} serverAgentId - Server agent ID to validate
+   * @param {string} dataHash - Hash of data to validate
+   * @returns {Promise<Object>} Validation request result
+   */
+  static async requestValidation(validatorAgentId, serverAgentId, dataHash) {
+    return await ValidationRegistry.requestValidation(validatorAgentId, serverAgentId, dataHash);
+  }
+
+  /**
+   * Respond to validation request
+   * @param {string} dataHash - Hash of validated data
+   * @param {number} response - Validation score (0-100)
+   * @returns {Promise<Object>} Response result
+   */
+  static async respondToValidation(dataHash, response) {
+    return await ValidationRegistry.respondToValidation(dataHash, response);
+  }
+
+  /**
+   * Get validation request details
+   * @param {string} requestId - Request ID
+   * @returns {Promise<Object>} Request details
+   */
+  static async getValidationRequest(requestId) {
+    return await ValidationRegistry.getValidationRequest(requestId);
+  }
+
+  /**
+   * Get pending validations for a validator
+   * @param {number|string} validatorAgentId - Validator agent ID
+   * @returns {Promise<string[]>} Array of pending request IDs
+   */
+  static async getPendingValidations(validatorAgentId) {
+    return await ValidationRegistry.getPendingValidations(validatorAgentId);
+  }
+
+  /**
+   * Get server validations
+   * @param {number|string} serverAgentId - Server agent ID
+   * @returns {Promise<string[]>} Array of request IDs
+   */
+  static async getServerValidations(serverAgentId) {
+    return await ValidationRegistry.getServerValidations(serverAgentId);
+  }
+
+  /**
+   * Get detailed validation request information
+   * @param {string} requestId - Request ID
+   * @returns {Promise<Object>} Detailed request information
+   */
+  static async getValidationRequestDetails(requestId) {
+    return await ValidationRegistry.getValidationRequestDetails(requestId);
+  }
+
+  /**
+   * Check if validation is completed
+   * @param {string} dataHash - Data hash to check
+   * @returns {Promise<boolean>} True if completed
+   */
+  static async isValidationCompleted(dataHash) {
+    return await ValidationRegistry.isValidationCompleted(dataHash);
+  }
 }
 
-// Export the Agent class as default
 export default Agent;
-
-// Also export for named imports
-export { Agent };
-
-// Export utility functions
-export const {
-  importWallet,
-  getWalletAddress,
-  getWalletBalance,
-  registerAgent,
-  updateAgent,
-  getAgent,
-  resolveByDomain,
-  resolveByAddress,
-  agentExists,
-  getTotalAgents,
-  getNextAgentId
-} = IdentityRegistry;
