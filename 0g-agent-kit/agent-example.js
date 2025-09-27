@@ -5,9 +5,9 @@ import Agent from "./src/0gAgentSdk.js";
 const app = express();
 app.use(bodyParser.json());
 
-agent.enableAI({
-  groqApiKey: "",
-});
+// agent.enableAI({
+//   groqApiKey: "",
+// });
 
 // ✅ API endpoint
 app.post("/agent/execute", async (req, res) => {
